@@ -33,7 +33,7 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
         .tap()
         .persist()
         .up()
-        .try_build()
+        .build()
         .map_err(FirecrackerNetworkError::TapDeviceError)?;
     let tap_idx = crate::util::get_link_index(network.tap_name.clone(), &netlink_handle).await?;
     netlink_handle
@@ -48,9 +48,9 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
         .map_err(FirecrackerNetworkError::NftablesError)?;
     let mut masquerade_rule_exists = false;
 
-    for object in &current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match object.as_ref() {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Rule(rule)
                     if rule.chain == NFT_POSTROUTING_CHAIN && rule.table == NFT_TABLE && rule.expr == masq_expr(network) =>
                 {
@@ -67,9 +67,9 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
 
     batch.add(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: forward_expr(network),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: forward_expr(network).into(),
         handle: None,
         index: None,
         comment: None,
@@ -78,16 +78,16 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
     if !masquerade_rule_exists {
         batch.add(NfListObject::Rule(Rule {
             family: network.nf_family(),
-            table: NFT_TABLE.to_string(),
-            chain: NFT_POSTROUTING_CHAIN.to_string(),
-            expr: masq_expr(network),
+            table: NFT_TABLE.into(),
+            chain: NFT_POSTROUTING_CHAIN.into(),
+            expr: masq_expr(network).into(),
             handle: None,
             index: None,
             comment: None,
         }));
     }
 
-    apply_ruleset::<B::NftablesProcess>(&batch.to_nftables(), network.nf_program(), None)
+    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -111,9 +111,9 @@ async fn delete<B: Backend>(
     let mut forward_rule_handle = None;
     let mut masquerade_rule_handle = None;
 
-    for object in current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match *object {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Rule(rule) if rule.table == NFT_TABLE => {
                     if rule.chain == NFT_FILTER_CHAIN && rule.expr == forward_expr(network) {
                         forward_rule_handle = rule.handle;
@@ -141,24 +141,24 @@ async fn delete<B: Backend>(
     let mut batch = Batch::new();
     batch.delete(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: forward_expr(network),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: forward_expr(network).into(),
         handle: forward_rule_handle,
         index: None,
         comment: None,
     }));
     batch.delete(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_POSTROUTING_CHAIN.to_string(),
-        expr: masq_expr(network),
+        table: NFT_TABLE.into(),
+        chain: NFT_POSTROUTING_CHAIN.into(),
+        expr: masq_expr(network).into(),
         handle: masquerade_rule_handle,
         index: None,
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(&batch.to_nftables(), network.nf_program(), None)
+    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -177,9 +177,9 @@ async fn check<B: Backend>(
 
     check_base_chains(network, &current_ruleset)?;
 
-    for object in current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match *object {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Rule(rule) => {
                     if rule.chain == NFT_POSTROUTING_CHAIN && rule.expr == masq_expr(network) {
                         masquerade_rule_exists = true;
@@ -209,19 +209,19 @@ async fn check<B: Backend>(
 }
 
 #[inline]
-fn masq_expr(network: &FirecrackerNetwork) -> Vec<Statement> {
+fn masq_expr(network: &FirecrackerNetwork) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField {
                 protocol: nat_proto_from_addr(network.guest_ip.address()),
-                field: "saddr".to_string(),
+                field: "saddr".into(),
             }))),
-            right: Expression::String(network.guest_ip.address().to_string()),
+            right: Expression::String(network.guest_ip.address().to_string().into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(network.iface_name.clone()),
+            right: Expression::String(network.iface_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Masquerade(None),
@@ -229,16 +229,16 @@ fn masq_expr(network: &FirecrackerNetwork) -> Vec<Statement> {
 }
 
 #[inline]
-fn forward_expr(network: &FirecrackerNetwork) -> Vec<Statement> {
+fn forward_expr(network: &FirecrackerNetwork) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Iifname })),
-            right: Expression::String(network.tap_name.clone()),
+            right: Expression::String(network.tap_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(network.iface_name.clone()),
+            right: Expression::String(network.iface_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Accept(None),

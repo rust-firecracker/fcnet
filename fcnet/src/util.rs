@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::{borrow::Cow, net::IpAddr};
 
 use fcnet_types::{FirecrackerIpStack, FirecrackerNetwork};
 use futures_util::TryStreamExt;
@@ -33,9 +33,9 @@ pub fn add_base_chains_if_needed(
     let mut postrouting_chain_exists = false;
     let mut filter_chain_exists = false;
 
-    for object in &current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match object.as_ref() {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Table(table) if table.name == NFT_TABLE && table.family == network.nf_family() => {
                     table_exists = true;
                 }
@@ -55,7 +55,7 @@ pub fn add_base_chains_if_needed(
     if !table_exists {
         batch.add(NfListObject::Table(Table {
             family: network.nf_family(),
-            name: NFT_TABLE.to_string(),
+            name: NFT_TABLE.into(),
             handle: None,
         }));
     }
@@ -63,8 +63,8 @@ pub fn add_base_chains_if_needed(
     if !postrouting_chain_exists {
         batch.add(NfListObject::Chain(Chain {
             family: network.nf_family(),
-            table: NFT_TABLE.to_string(),
-            name: NFT_POSTROUTING_CHAIN.to_string(),
+            table: NFT_TABLE.into(),
+            name: NFT_POSTROUTING_CHAIN.into(),
             _type: Some(NfChainType::NAT),
             hook: Some(NfHook::Postrouting),
             prio: Some(100),
@@ -78,8 +78,8 @@ pub fn add_base_chains_if_needed(
     if !filter_chain_exists {
         batch.add(NfListObject::Chain(Chain {
             family: network.nf_family(),
-            table: NFT_TABLE.to_string(),
-            name: NFT_FILTER_CHAIN.to_string(),
+            table: NFT_TABLE.into(),
+            name: NFT_FILTER_CHAIN.into(),
             _type: Some(NfChainType::Filter),
             hook: Some(NfHook::Forward),
             prio: Some(0),
@@ -98,9 +98,9 @@ pub fn check_base_chains(network: &FirecrackerNetwork, current_ruleset: &Nftable
     let mut postrouting_chain_exists = false;
     let mut filter_chain_exists = false;
 
-    for object in &current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match object.as_ref() {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Table(table) if table.name == NFT_TABLE && table.family == network.nf_family() => {
                     table_exists = true;
                 }
@@ -137,10 +137,10 @@ pub fn check_base_chains(network: &FirecrackerNetwork, current_ruleset: &Nftable
 }
 
 #[inline]
-pub fn nat_proto_from_addr(addr: IpAddr) -> String {
+pub fn nat_proto_from_addr(addr: IpAddr) -> Cow<'static, str> {
     match addr {
-        IpAddr::V4(_) => "ip".to_string(),
-        IpAddr::V6(_) => "ip6".to_string(),
+        IpAddr::V4(_) => "ip".into(),
+        IpAddr::V6(_) => "ip6".into(),
     }
 }
 

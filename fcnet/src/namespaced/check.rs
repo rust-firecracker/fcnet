@@ -8,7 +8,7 @@ use nftables::{
     types::NfFamily,
 };
 use nftables_async::get_current_ruleset;
-use rtnetlink::IpVersion;
+use rtnetlink::RouteMessageBuilder;
 
 use crate::{
     backend::Backend,
@@ -57,9 +57,9 @@ async fn check_outer_nf_rules<B: Backend>(
     let mut outer_ingress_forward_rule_exists = false;
     let mut outer_egress_forward_rule_exists = false;
 
-    for object in current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match *object {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Rule(rule) if rule.table == NFT_TABLE.to_string() => {
                     if rule.chain == NFT_POSTROUTING_CHAIN && rule.expr == outer_masq_expr(network, &namespaced_data) {
                         outer_masq_rule_exists = true;
@@ -103,12 +103,11 @@ async fn check_outer_forward_route(
     netlink_handle: rtnetlink::Handle,
 ) -> Result<(), FirecrackerNetworkError> {
     if let Some(forwarded_guest_ip) = namespaced_data.forwarded_guest_ip {
-        let ip_version = match forwarded_guest_ip {
-            IpAddr::V4(_) => IpVersion::V4,
-            IpAddr::V6(_) => IpVersion::V6,
-        };
         let mut route_message = None;
-        let mut route_message_stream = netlink_handle.route().get(ip_version).execute();
+        let mut route_message_stream = netlink_handle
+            .route()
+            .get(RouteMessageBuilder::<IpAddr>::new().build())
+            .execute();
 
         while let Ok(Some(current_route_message)) = route_message_stream.try_next().await {
             for attribute in &current_route_message.attributes {
@@ -153,9 +152,9 @@ async fn check_inner_nf_rules<B: Backend>(
     let mut snat_rule_exists = false;
     let mut dnat_rule_exists = false;
 
-    for object in current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match *object {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Table(table) if table.name == NFT_TABLE => {
                     table_exists = true;
                 }

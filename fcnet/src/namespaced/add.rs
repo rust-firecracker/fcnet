@@ -1,4 +1,7 @@
-use std::{net::IpAddr, os::fd::AsRawFd};
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    os::fd::AsRawFd,
+};
 
 use cidr::IpInet;
 use nftables::{
@@ -7,6 +10,7 @@ use nftables::{
     types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
 };
 use nftables_async::{apply_ruleset, get_current_ruleset};
+use rtnetlink::{LinkMessageBuilder, LinkUnspec, LinkVeth, RouteMessageBuilder};
 use tokio_tun::TunBuilder;
 
 use crate::{
@@ -53,8 +57,7 @@ async fn setup_outer_interfaces(
 ) -> Result<(), FirecrackerNetworkError> {
     outer_handle
         .link()
-        .add()
-        .veth(namespaced_data.veth1_name.to_string(), namespaced_data.veth2_name.to_string())
+        .add(LinkMessageBuilder::<LinkVeth>::new(namespaced_data.veth1_name, namespaced_data.veth2_name).build())
         .execute()
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
@@ -73,20 +76,28 @@ async fn setup_outer_interfaces(
 
     outer_handle
         .link()
-        .set(veth1_idx)
-        .up()
+        .set(
+            LinkMessageBuilder::<LinkVeth>::new(namespaced_data.veth1_name, namespaced_data.veth2_name)
+                .up()
+                .build(),
+        )
         .execute()
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
 
+    let veth2_idx = get_link_index(namespaced_data.veth2_name.to_string(), &outer_handle).await?;
     outer_handle
         .link()
-        .set(get_link_index(namespaced_data.veth2_name.to_string(), &outer_handle).await?)
-        .setns_by_fd(
-            NetNs::new(&namespaced_data.netns_name)
-                .map_err(FirecrackerNetworkError::NetnsError)?
-                .file()
-                .as_raw_fd(),
+        .set(
+            LinkMessageBuilder::<LinkUnspec>::new()
+                .index(veth2_idx)
+                .setns_by_fd(
+                    NetNs::new(&namespaced_data.netns_name)
+                        .map_err(FirecrackerNetworkError::NetnsError)?
+                        .file()
+                        .as_raw_fd(),
+                )
+                .build(),
         )
         .execute()
         .await
@@ -106,9 +117,9 @@ async fn setup_outer_nf_rules<B: Backend>(
     // masquerade veth packets as host iface packets
     batch.add(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_POSTROUTING_CHAIN.to_string(),
-        expr: outer_masq_expr(network, namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_POSTROUTING_CHAIN.into(),
+        expr: outer_masq_expr(network, namespaced_data).into(),
         handle: None,
         index: None,
         comment: None,
@@ -117,9 +128,9 @@ async fn setup_outer_nf_rules<B: Backend>(
     // forward ingress packets from host iface to veth
     batch.add(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: outer_ingress_forward_expr(network, namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: outer_ingress_forward_expr(network, namespaced_data).into(),
         handle: None,
         index: None,
         comment: None,
@@ -128,15 +139,15 @@ async fn setup_outer_nf_rules<B: Backend>(
     // forward egress packets from veth to host iface
     batch.add(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: outer_egress_forward_expr(network, namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: outer_egress_forward_expr(network, namespaced_data).into(),
         handle: None,
         index: None,
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(&batch.to_nftables(), network.nf_program(), None)
+    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -149,31 +160,28 @@ async fn setup_outer_forward_route(
     // guest ip available only in the netns
     if let Some(forwarded_guest_ip) = namespaced_data.forwarded_guest_ip {
         match forwarded_guest_ip {
-            IpAddr::V4(v4) => outer_handle
-                .route()
-                .add()
-                .v4()
-                .destination_prefix(*v4, 32)
-                .gateway(match namespaced_data.veth2_ip.address() {
-                    IpAddr::V4(v4) => v4,
-                    IpAddr::V6(_) => return Err(FirecrackerNetworkError::ForbiddenDualStackInRoute),
-                })
-                .execute()
-                .await
-                .map_err(FirecrackerNetworkError::NetlinkOperationError)?,
-            IpAddr::V6(v6) => outer_handle
-                .route()
-                .add()
-                .v6()
-                .destination_prefix(*v6, 128)
-                .gateway(match namespaced_data.veth2_ip.address() {
-                    IpAddr::V4(_) => return Err(FirecrackerNetworkError::ForbiddenDualStackInRoute),
-                    IpAddr::V6(v6) => v6,
-                })
-                .execute()
-                .await
-                .map_err(FirecrackerNetworkError::NetlinkOperationError)?,
-        };
+            IpAddr::V4(v4) => outer_handle.route().add(
+                RouteMessageBuilder::<Ipv4Addr>::new()
+                    .destination_prefix(*v4, 32)
+                    .gateway(match namespaced_data.veth2_ip.address() {
+                        IpAddr::V4(v4) => v4,
+                        IpAddr::V6(_) => return Err(FirecrackerNetworkError::ForbiddenDualStackInRoute),
+                    })
+                    .build(),
+            ),
+            IpAddr::V6(v6) => outer_handle.route().add(
+                RouteMessageBuilder::<Ipv6Addr>::new()
+                    .destination_prefix(*v6, 128)
+                    .gateway(match namespaced_data.veth2_ip.address() {
+                        IpAddr::V4(_) => return Err(FirecrackerNetworkError::ForbiddenDualStackInRoute),
+                        IpAddr::V6(v6) => v6,
+                    })
+                    .build(),
+            ),
+        }
+        .execute()
+        .await
+        .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
     }
     Ok(())
 }
@@ -190,7 +198,7 @@ async fn setup_inner_interfaces<B: Backend>(
         .tap()
         .persist()
         .up()
-        .try_build()
+        .build()
         .map_err(FirecrackerNetworkError::TapDeviceError)?;
     let (connection, inner_handle, _) =
         rtnetlink::new_connection_with_socket::<B::NetlinkSocket>().map_err(FirecrackerNetworkError::IoError)?;
@@ -205,30 +213,22 @@ async fn setup_inner_interfaces<B: Backend>(
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
     inner_handle
         .link()
-        .set(veth2_idx)
-        .up()
+        .set(LinkMessageBuilder::<LinkUnspec>::new().index(veth2_idx).up().build())
         .execute()
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
 
     match veth1_ip {
-        IpInet::V4(ref veth1_ip) => inner_handle
+        IpInet::V4(ref v4) => inner_handle
             .route()
-            .add()
-            .v4()
-            .gateway(veth1_ip.address())
-            .execute()
-            .await
-            .map_err(FirecrackerNetworkError::NetlinkOperationError)?,
-        IpInet::V6(ref veth1_ip) => inner_handle
+            .add(RouteMessageBuilder::<Ipv4Addr>::new().gateway(v4.address()).build()),
+        IpInet::V6(ref v6) => inner_handle
             .route()
-            .add()
-            .v6()
-            .gateway(veth1_ip.address())
-            .execute()
-            .await
-            .map_err(FirecrackerNetworkError::NetlinkOperationError)?,
+            .add(RouteMessageBuilder::<Ipv6Addr>::new().gateway(v6.address()).build()),
     }
+    .execute()
+    .await
+    .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
 
     let tap_idx = get_link_index(tap_name, &inner_handle).await?;
     inner_handle
@@ -239,8 +239,7 @@ async fn setup_inner_interfaces<B: Backend>(
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
     inner_handle
         .link()
-        .set(tap_idx)
-        .up()
+        .set(LinkMessageBuilder::<LinkUnspec>::new().index(tap_idx).up().build())
         .execute()
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)
@@ -259,14 +258,14 @@ async fn setup_inner_nf_rules<B: Backend>(
     // create table, postrouting and prerouting chains (prerouting only needed when using forwarding)
     batch.add(NfListObject::Table(Table {
         family: nf_family,
-        name: NFT_TABLE.to_string(),
+        name: NFT_TABLE.into(),
         handle: None,
     }));
 
     batch.add(NfListObject::Chain(Chain {
         family: nf_family,
-        table: NFT_TABLE.to_string(),
-        name: NFT_POSTROUTING_CHAIN.to_string(),
+        table: NFT_TABLE.into(),
+        name: NFT_POSTROUTING_CHAIN.into(),
         newname: None,
         handle: None,
         _type: Some(NfChainType::NAT),
@@ -279,8 +278,8 @@ async fn setup_inner_nf_rules<B: Backend>(
     if let Some(_) = forwarded_guest_ip {
         batch.add(NfListObject::Chain(Chain {
             family: nf_family,
-            table: NFT_TABLE.to_string(),
-            name: NFT_PREROUTING_CHAIN.to_string(),
+            table: NFT_TABLE.into(),
+            name: NFT_PREROUTING_CHAIN.into(),
             newname: None,
             handle: None,
             _type: Some(NfChainType::NAT),
@@ -295,9 +294,9 @@ async fn setup_inner_nf_rules<B: Backend>(
     // guest ip local to the inner netns, but from the known veth2 ip
     batch.add(NfListObject::Rule(Rule {
         family: nf_family,
-        table: NFT_TABLE.to_string(),
-        chain: NFT_POSTROUTING_CHAIN.to_string(),
-        expr: inner_snat_expr(veth2_name.clone(), guest_ip, veth2_ip, nf_family),
+        table: NFT_TABLE.into(),
+        chain: NFT_POSTROUTING_CHAIN.into(),
+        expr: inner_snat_expr(veth2_name.clone(), guest_ip, veth2_ip, nf_family).into(),
         handle: None,
         index: None,
         comment: None,
@@ -308,16 +307,16 @@ async fn setup_inner_nf_rules<B: Backend>(
     if let Some(forwarded_guest_ip) = forwarded_guest_ip {
         batch.add(NfListObject::Rule(Rule {
             family: nf_family,
-            table: NFT_TABLE.to_string(),
-            chain: NFT_PREROUTING_CHAIN.to_string(),
-            expr: inner_dnat_expr(veth2_name, forwarded_guest_ip, guest_ip, nf_family),
+            table: NFT_TABLE.into(),
+            chain: NFT_PREROUTING_CHAIN.into(),
+            expr: inner_dnat_expr(veth2_name, forwarded_guest_ip, guest_ip, nf_family).into(),
             handle: None,
             index: None,
             comment: None,
         }));
     }
 
-    apply_ruleset::<B::NftablesProcess>(&batch.to_nftables(), nft_path.as_deref(), None)
+    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), nft_path.as_deref(), None)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }

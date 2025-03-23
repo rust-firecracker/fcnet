@@ -28,9 +28,9 @@ pub(super) async fn delete<B: Backend>(
     let mut outer_ingress_forward_rule_handle = None;
     let mut outer_egress_forward_rule_handle = None;
 
-    for object in current_ruleset.objects {
+    for object in current_ruleset.objects.iter() {
         match object {
-            NfObject::ListObject(object) => match *object {
+            NfObject::ListObject(object) => match object {
                 NfListObject::Rule(rule) if rule.table == NFT_TABLE.to_string() => {
                     if rule.chain == NFT_POSTROUTING_CHAIN && rule.expr == outer_masq_expr(network, &namespaced_data) {
                         outer_masq_rule_handle = rule.handle;
@@ -69,33 +69,33 @@ pub(super) async fn delete<B: Backend>(
     let mut batch = Batch::new();
     batch.delete(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_POSTROUTING_CHAIN.to_string(),
-        expr: outer_masq_expr(network, &namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_POSTROUTING_CHAIN.into(),
+        expr: outer_masq_expr(network, &namespaced_data).into(),
         handle: outer_masq_rule_handle,
         index: None,
         comment: None,
     }));
     batch.delete(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: outer_ingress_forward_expr(network, &namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: outer_ingress_forward_expr(network, &namespaced_data).into(),
         handle: outer_ingress_forward_rule_handle,
         index: None,
         comment: None,
     }));
     batch.delete(NfListObject::Rule(Rule {
         family: network.nf_family(),
-        table: NFT_TABLE.to_string(),
-        chain: NFT_FILTER_CHAIN.to_string(),
-        expr: outer_egress_forward_expr(network, &namespaced_data),
+        table: NFT_TABLE.into(),
+        chain: NFT_FILTER_CHAIN.into(),
+        expr: outer_egress_forward_expr(network, &namespaced_data).into(),
         handle: outer_egress_forward_rule_handle,
         index: None,
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(&batch.to_nftables(), network.nf_program(), None)
+    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }

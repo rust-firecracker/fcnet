@@ -87,19 +87,19 @@ async fn use_netns_in_thread<B: Backend>(
 }
 
 #[inline]
-fn outer_masq_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData<'_>) -> Vec<Statement> {
+fn outer_masq_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField {
                 protocol: nat_proto_from_addr(namespaced_data.veth2_ip.address()),
-                field: "saddr".to_string(),
+                field: "saddr".into(),
             }))),
-            right: Expression::String(namespaced_data.veth2_ip.address().to_string()),
+            right: Expression::String(namespaced_data.veth2_ip.address().to_string().into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(network.iface_name.to_string()),
+            right: Expression::String(network.iface_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Masquerade(None),
@@ -107,16 +107,16 @@ fn outer_masq_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedDat
 }
 
 #[inline]
-fn outer_ingress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData<'_>) -> Vec<Statement> {
+fn outer_ingress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Iifname })),
-            right: Expression::String(network.iface_name.clone()),
+            right: Expression::String(network.iface_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(namespaced_data.veth1_name.to_string()),
+            right: Expression::String(namespaced_data.veth1_name.to_string().into()),
             op: Operator::EQ,
         }),
         Statement::Accept(None),
@@ -124,16 +124,16 @@ fn outer_ingress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &Na
 }
 
 #[inline]
-fn outer_egress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData<'_>) -> Vec<Statement> {
+fn outer_egress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &NamespacedData) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(network.iface_name.clone()),
+            right: Expression::String(network.iface_name.clone().into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Iifname })),
-            right: Expression::String(namespaced_data.veth1_name.to_string()),
+            right: Expression::String(namespaced_data.veth1_name.to_string().into()),
             op: Operator::EQ,
         }),
         Statement::Accept(None),
@@ -141,23 +141,23 @@ fn outer_egress_forward_expr(network: &FirecrackerNetwork, namespaced_data: &Nam
 }
 
 #[inline]
-fn inner_snat_expr(veth2_name: String, guest_ip: IpInet, veth2_ip: IpInet, nf_family: NfFamily) -> Vec<Statement> {
+fn inner_snat_expr(veth2_name: String, guest_ip: IpInet, veth2_ip: IpInet, nf_family: NfFamily) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Oifname })),
-            right: Expression::String(veth2_name),
+            right: Expression::String(veth2_name.into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField {
                 protocol: nat_proto_from_addr(guest_ip.address()),
-                field: "saddr".to_string(),
+                field: "saddr".into(),
             }))),
-            right: Expression::String(guest_ip.address().to_string()),
+            right: Expression::String(guest_ip.address().to_string().into()),
             op: Operator::EQ,
         }),
         Statement::SNAT(Some(NAT {
-            addr: Some(Expression::String(veth2_ip.address().to_string())),
+            addr: Some(Expression::String(veth2_ip.address().to_string().into())),
             family: match nf_family {
                 NfFamily::INet => Some(nat_family_from_inet(&veth2_ip)),
                 _ => None,
@@ -169,23 +169,28 @@ fn inner_snat_expr(veth2_name: String, guest_ip: IpInet, veth2_ip: IpInet, nf_fa
 }
 
 #[inline]
-fn inner_dnat_expr(veth2_name: String, forwarded_guest_ip: IpAddr, guest_ip: IpInet, nf_family: NfFamily) -> Vec<Statement> {
+fn inner_dnat_expr(
+    veth2_name: String,
+    forwarded_guest_ip: IpAddr,
+    guest_ip: IpInet,
+    nf_family: NfFamily,
+) -> Vec<Statement<'static>> {
     vec![
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::Iifname })),
-            right: Expression::String(veth2_name),
+            right: Expression::String(veth2_name.into()),
             op: Operator::EQ,
         }),
         Statement::Match(Match {
             left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField {
                 protocol: nat_proto_from_addr(forwarded_guest_ip),
-                field: "daddr".to_string(),
+                field: "daddr".into(),
             }))),
-            right: Expression::String(forwarded_guest_ip.to_string()),
+            right: Expression::String(forwarded_guest_ip.to_string().into()),
             op: Operator::EQ,
         }),
         Statement::DNAT(Some(NAT {
-            addr: Some(Expression::String(guest_ip.address().to_string())),
+            addr: Some(Expression::String(guest_ip.address().to_string().into())),
             family: match nf_family {
                 NfFamily::INet => Some(nat_family_from_inet(&guest_ip)),
                 _ => None,

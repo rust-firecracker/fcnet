@@ -5,12 +5,14 @@ use nftables::{
     schema::{NfListObject, NfObject, Rule},
     stmt::{Match, Operator, Statement},
 };
-use nftables_async::{apply_ruleset, get_current_ruleset};
+use nftables_async::helper::Helper;
 use tokio_tun::TunBuilder;
 
 use crate::{
     backend::Backend,
-    util::{add_base_chains_if_needed, check_base_chains, get_link_index, nat_proto_from_addr, FirecrackerNetworkExt},
+    util::{
+        add_base_chains_if_needed, check_base_chains, get_link_index, nat_proto_from_addr, FirecrackerNetworkExt, NO_NFT_ARGS,
+    },
     FirecrackerNetworkError, FirecrackerNetworkObjectType, FirecrackerNetworkOperation, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN,
     NFT_TABLE,
 };
@@ -43,7 +45,7 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
 
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
     let mut masquerade_rule_exists = false;
@@ -87,7 +89,7 @@ async fn add<B: Backend>(network: &FirecrackerNetwork, netlink_handle: rtnetlink
         }));
     }
 
-    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
+    B::NftablesDriver::apply_ruleset_with_args(&batch.to_nftables(), network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -104,7 +106,7 @@ async fn delete<B: Backend>(
         .await
         .map_err(FirecrackerNetworkError::NetlinkOperationError)?;
 
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
 
@@ -158,7 +160,7 @@ async fn delete<B: Backend>(
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
+    B::NftablesDriver::apply_ruleset_with_args(&batch.to_nftables(), network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -169,7 +171,7 @@ async fn check<B: Backend>(
 ) -> Result<(), FirecrackerNetworkError> {
     get_link_index(network.tap_name.clone(), &netlink_handle).await?;
 
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
     let mut masquerade_rule_exists = false;

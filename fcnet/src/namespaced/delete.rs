@@ -2,11 +2,14 @@ use nftables::{
     batch::Batch,
     schema::{NfListObject, NfObject, Rule},
 };
-use nftables_async::{apply_ruleset, get_current_ruleset};
+use nftables_async::helper::Helper;
 
 use crate::{
-    backend::Backend, netns::NetNs, util::FirecrackerNetworkExt, FirecrackerNetwork, FirecrackerNetworkError,
-    FirecrackerNetworkObjectType, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN, NFT_TABLE,
+    backend::Backend,
+    netns::NetNs,
+    util::{FirecrackerNetworkExt, NO_NFT_ARGS},
+    FirecrackerNetwork, FirecrackerNetworkError, FirecrackerNetworkObjectType, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN,
+    NFT_TABLE,
 };
 
 use super::{outer_egress_forward_expr, outer_ingress_forward_expr, outer_masq_expr, NamespacedData};
@@ -20,7 +23,7 @@ pub(super) async fn delete<B: Backend>(
         .remove()
         .map_err(FirecrackerNetworkError::NetnsError)?;
 
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
 
@@ -95,7 +98,7 @@ pub(super) async fn delete<B: Backend>(
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
+    B::NftablesDriver::apply_ruleset_with_args(&batch.to_nftables(), network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }

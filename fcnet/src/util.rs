@@ -1,4 +1,4 @@
-use std::{borrow::Cow, net::IpAddr};
+use std::{borrow::Cow, ffi::OsStr, net::IpAddr};
 
 use fcnet_types::{FirecrackerIpStack, FirecrackerNetwork};
 use futures_util::TryStreamExt;
@@ -9,6 +9,8 @@ use nftables::{
 };
 
 use crate::{FirecrackerNetworkError, FirecrackerNetworkObjectType, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN, NFT_TABLE};
+
+pub const NO_NFT_ARGS: std::iter::Empty<&OsStr> = std::iter::empty();
 
 pub async fn get_link_index(link: String, netlink_handle: &rtnetlink::Handle) -> Result<u32, FirecrackerNetworkError> {
     Ok(netlink_handle
@@ -146,7 +148,7 @@ pub fn nat_proto_from_addr(addr: IpAddr) -> Cow<'static, str> {
 
 pub trait FirecrackerNetworkExt {
     fn nf_family(&self) -> NfFamily;
-    fn nf_program(&self) -> Option<&str>;
+    fn nft_program(&self) -> Option<&str>;
 }
 
 impl FirecrackerNetworkExt for FirecrackerNetwork {
@@ -160,7 +162,7 @@ impl FirecrackerNetworkExt for FirecrackerNetwork {
     }
 
     #[inline]
-    fn nf_program(&self) -> Option<&str> {
+    fn nft_program(&self) -> Option<&str> {
         self.nft_path.as_ref().map(|p| p.as_str())
     }
 }

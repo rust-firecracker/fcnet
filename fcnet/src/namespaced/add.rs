@@ -1,4 +1,5 @@
 use std::{
+    ffi::OsStr,
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     os::fd::AsRawFd,
 };
@@ -9,13 +10,13 @@ use nftables::{
     schema::{Chain, NfListObject, Rule, Table},
     types::{NfChainPolicy, NfChainType, NfFamily, NfHook},
 };
-use nftables_async::{apply_ruleset, get_current_ruleset};
+use nftables_async::helper::Helper;
 use rtnetlink::{LinkMessageBuilder, LinkUnspec, LinkVeth, RouteMessageBuilder};
 use tokio_tun::TunBuilder;
 
 use crate::{
     netns::NetNs,
-    util::{add_base_chains_if_needed, get_link_index, FirecrackerNetworkExt},
+    util::{add_base_chains_if_needed, get_link_index, FirecrackerNetworkExt, NO_NFT_ARGS},
     Backend, FirecrackerNetwork, FirecrackerNetworkError, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN, NFT_PREROUTING_CHAIN,
     NFT_TABLE,
 };
@@ -108,7 +109,7 @@ async fn setup_outer_nf_rules<B: Backend>(
     namespaced_data: &NamespacedData<'_>,
     network: &FirecrackerNetwork,
 ) -> Result<(), FirecrackerNetworkError> {
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
     let mut batch = Batch::new();
@@ -147,7 +148,7 @@ async fn setup_outer_nf_rules<B: Backend>(
         comment: None,
     }));
 
-    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), network.nf_program(), None)
+    B::NftablesDriver::apply_ruleset_with_args(&batch.to_nftables(), network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }
@@ -316,7 +317,7 @@ async fn setup_inner_nf_rules<B: Backend>(
         }));
     }
 
-    apply_ruleset::<B::NftablesProcess>(batch.to_nftables(), nft_path.as_deref(), None)
+    B::NftablesDriver::apply_ruleset_with_args(&batch.to_nftables(), nft_path.as_deref(), std::iter::empty::<&OsStr>())
         .await
         .map_err(FirecrackerNetworkError::NftablesError)
 }

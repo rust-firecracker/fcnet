@@ -7,12 +7,12 @@ use nftables::{
     schema::{NfListObject, NfObject},
     types::NfFamily,
 };
-use nftables_async::get_current_ruleset;
+use nftables_async::helper::Helper;
 use rtnetlink::RouteMessageBuilder;
 
 use crate::{
     backend::Backend,
-    util::{check_base_chains, FirecrackerNetworkExt},
+    util::{check_base_chains, FirecrackerNetworkExt, NO_NFT_ARGS},
     FirecrackerNetwork, FirecrackerNetworkError, FirecrackerNetworkObjectType, NFT_FILTER_CHAIN, NFT_POSTROUTING_CHAIN,
     NFT_PREROUTING_CHAIN, NFT_TABLE,
 };
@@ -48,7 +48,7 @@ async fn check_outer_nf_rules<B: Backend>(
     network: &FirecrackerNetwork,
     namespaced_data: &NamespacedData<'_>,
 ) -> Result<(), FirecrackerNetworkError> {
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(network.nf_program(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(network.nft_program(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
     check_base_chains(network, &current_ruleset)?;
@@ -142,7 +142,7 @@ async fn check_inner_nf_rules<B: Backend>(
     veth2_ip: IpInet,
     nf_family: NfFamily,
 ) -> Result<(), FirecrackerNetworkError> {
-    let current_ruleset = get_current_ruleset::<B::NftablesProcess>(nft_path.as_deref(), None)
+    let current_ruleset = B::NftablesDriver::get_current_ruleset_with_args(nft_path.as_deref(), NO_NFT_ARGS)
         .await
         .map_err(FirecrackerNetworkError::NftablesError)?;
 

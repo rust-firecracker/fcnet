@@ -383,7 +383,7 @@ checksum = "486f806e73c5707928240ddc295403b1b93c96a02038563881c4a2fd84b81ac4"
 
 [[package]]
 name = "fcnet"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "async-executor",
  "async-io",
@@ -406,7 +406,7 @@ dependencies = [
 
 [[package]]
 name = "fcnet-cli"
-version = "0.4.1"
+version = "0.4.2"
 dependencies = [
  "cidr",
  "clap",
@@ -426,7 +426,7 @@ dependencies = [
 
 [[package]]
 name = "fcnetd"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "clap",
  "fcnet",
@@ -726,16 +726,15 @@ dependencies = [
 
 [[package]]
 name = "nftables-async"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4956d0b332c334254467d83538c3b38a39d39a32b169c3500d8b9fb86353eeb9"
+checksum = "257e28e53137519e75e09e47db168afa24a38c5b4c449406a953d703cc057b81"
 dependencies = [
  "async-process",
- "futures-util",
+ "futures-lite",
  "nftables",
  "serde_json",
  "tokio",
- "tokio-util",
 ]
 
 [[package]]
@@ -1115,9 +1114,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.44.1"
+version = "1.44.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f382da615b842244d4b8738c82ed1275e6c5dd90c459a30941cd07080b06c91a"
+checksum = "e6b88822cbe49de4185e3a4cbf8321dd487cf5fe0c5c65695fef6346371e9c48"
 dependencies = [
  "backtrace",
  "bytes",

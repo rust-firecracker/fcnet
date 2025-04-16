@@ -11,8 +11,8 @@ use std::sync::{Arc, OnceLock};
 pub trait Backend: Send + Sync + 'static {
     /// The [netlink_sys] socket (async fd implementation) used by this backend.
     type NetlinkSocket: netlink_sys::AsyncSocket + Send;
-    /// The [nftables_async] process implementation used by this backend.
-    type NftablesProcess: nftables_async::process::Process;
+    /// The [nftables_async] driver used by this backend.
+    type NftablesDriver: nftables_async::driver::Driver;
 
     /// Spawn a netlink [Connection] onto this async runtime, detaching the spawned task to have it run
     /// in the background.
@@ -33,7 +33,7 @@ pub struct TokioBackend;
 #[cfg_attr(docsrs, doc(cfg(feature = "tokio-backend")))]
 impl Backend for TokioBackend {
     type NetlinkSocket = netlink_proto::sys::TokioSocket;
-    type NftablesProcess = nftables_async::process::TokioProcess;
+    type NftablesDriver = nftables_async::driver::TokioDriver;
 
     fn spawn_connection(connection: Connection<RouteNetlinkMessage, Self::NetlinkSocket>) {
         tokio::task::spawn(connection);
@@ -75,7 +75,7 @@ impl SmolBackend {
 #[cfg_attr(docsrs, doc(cfg(feature = "smol-backend")))]
 impl Backend for SmolBackend {
     type NetlinkSocket = netlink_proto::sys::SmolSocket;
-    type NftablesProcess = nftables_async::process::AsyncProcess;
+    type NftablesDriver = nftables_async::driver::AsyncProcessDriver;
 
     fn spawn_connection(connection: Connection<RouteNetlinkMessage, Self::NetlinkSocket>) {
         SMOL_EXECUTOR

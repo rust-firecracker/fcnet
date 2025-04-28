@@ -2,13 +2,12 @@ use std::net::IpAddr;
 
 use cidr::IpInet;
 use futures_util::TryStreamExt;
-use netlink_packet_route::route::{RouteAddress, RouteAttribute};
 use nftables::{
     schema::{NfListObject, NfObject},
     types::NfFamily,
 };
 use nftables_async::helper::Helper;
-use rtnetlink::RouteMessageBuilder;
+use rtnetlink::{packet_route::route::{RouteAddress, RouteAttribute}, RouteMessageBuilder};
 
 use crate::{
     backend::Backend,

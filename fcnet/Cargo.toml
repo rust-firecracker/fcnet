@@ -19,9 +19,7 @@ fcnet-types = { path = "../fcnet-types", version = "0.1.1" }
 futures-util = { version = "0.3.31", default-features = false }
 futures-channel = { version = "0.3.31", default-features = false, optional = true }
 rtnetlink = { version = "0.16.0", default-features = false }
-netlink-sys = { version = "0.8.7", default-features = false }
 netlink-proto = { version = "0.11.5", default-features = false }
-netlink-packet-route = "0.22.0"
 tokio-tun = "0.13.2"
 cidr = "0.3.1"
 nftables = "0.6.1"

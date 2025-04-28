@@ -1,7 +1,7 @@
 #[cfg(feature = "smol-backend")]
 use async_executor::{Executor, LocalExecutor};
-use netlink_packet_route::RouteNetlinkMessage;
 use netlink_proto::Connection;
+use rtnetlink::packet_route::RouteNetlinkMessage;
 use std::future::Future;
 #[cfg(feature = "smol-backend")]
 use std::sync::{Arc, OnceLock};
@@ -10,7 +10,7 @@ use std::sync::{Arc, OnceLock};
 /// to function.
 pub trait Backend: Send + Sync + 'static {
     /// The [netlink_sys] socket (async fd implementation) used by this backend.
-    type NetlinkSocket: netlink_sys::AsyncSocket + Send;
+    type NetlinkSocket: rtnetlink::sys::AsyncSocket + Send;
     /// The [nftables_async] driver used by this backend.
     type NftablesDriver: nftables_async::driver::Driver;
 

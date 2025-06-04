@@ -1,6 +1,6 @@
 [package]
 name = "fcnetd-client"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "A daemon-based Firecracker microVM networking backend based on fcnet-types."
 license = "MIT"
@@ -24,8 +24,8 @@ deadpool = { version = "0.12.2", default-features = false, features = [
     "managed",
 ], optional = true }
 
-tokio = { version = "1.44.1", features = ["net", "io-util"], optional = true }
-tokio-util = { version = "0.7.14", default-features = false, features = [
+tokio = { version = "1.45.1", features = ["net", "io-util"], optional = true }
+tokio-util = { version = "0.7.15", default-features = false, features = [
     "compat",
 ], optional = true }
 

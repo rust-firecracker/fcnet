@@ -9,7 +9,7 @@ use std::sync::{Arc, OnceLock};
 /// The [Backend] trait encapsulates the async-runtime-dependent functionality that is needed for fcnet
 /// to function.
 pub trait Backend: Send + Sync + 'static {
-    /// The [netlink_sys] socket (async fd implementation) used by this backend.
+    /// The [rtnetlink::sys::AsyncSocket] (async fd implementation) used by this backend.
     type NetlinkSocket: rtnetlink::sys::AsyncSocket + Send;
     /// The [nftables_async] driver used by this backend.
     type NftablesDriver: nftables_async::driver::Driver;

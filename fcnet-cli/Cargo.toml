@@ -1,6 +1,6 @@
 [package]
 name = "fcnet-cli"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2021"
 description = "A Firecracker microVM networking solution: CLI wrapper."
 license = "MIT"
@@ -10,12 +10,12 @@ repository = "https://github.com/rust-firecracker/fcnet"
 readme = "README.md"
 
 [dependencies]
-cidr = "0.3.0"
-clap = { version = "4.5.20", features = ["derive"] }
+cidr = "0.3.1"
+clap = { version = "4.5.47", features = ["derive"] }
 fcnet-types = { path = "../fcnet-types", version = "0.1.1" }
-fcnet = { path = "../fcnet", version = "0.10.0", features = [
+fcnet = { path = "../fcnet", version = "0.11.0", features = [
     "simple",
     "namespaced",
     "tokio-backend",
 ] }
-tokio = { version = "1.45.1", features = ["rt"] }
+tokio = { version = "1.47.1", features = ["rt"] }

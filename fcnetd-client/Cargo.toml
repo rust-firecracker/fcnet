@@ -1,6 +1,6 @@
 [package]
 name = "fcnetd-client"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 description = "A daemon-based Firecracker microVM networking backend based on fcnet-types."
 license = "MIT"
@@ -18,19 +18,19 @@ fcnet-types = { path = "../fcnet-types", version = "0.1.1", features = [
     "full",
 ] }
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.140"
+serde_json = "1.0.143"
 
-deadpool = { version = "0.12.2", default-features = false, features = [
+deadpool = { version = "0.12.3", default-features = false, features = [
     "managed",
 ], optional = true }
 
-tokio = { version = "1.45.1", features = ["net", "io-util"], optional = true }
-tokio-util = { version = "0.7.15", default-features = false, features = [
+tokio = { version = "1.47.1", features = ["net", "io-util"], optional = true }
+tokio-util = { version = "0.7.16", default-features = false, features = [
     "compat",
 ], optional = true }
 
 async-net = { version = "2.0.0", optional = true }
-futures-lite = { version = "2.6.0", optional = true }
+futures-lite = { version = "2.6.1", optional = true }
 
 [dev-dependencies]
 fcnetd-client = { path = ".", features = ["full"] }

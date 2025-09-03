@@ -1,6 +1,6 @@
 [package]
 name = "fcnet"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2021"
 description = "An in-process Firecracker microVM networking backend based on fcnet-types."
 license = "MIT"
@@ -18,19 +18,19 @@ fcnet-types = { path = "../fcnet-types", version = "0.1.1" }
 
 futures-util = { version = "0.3.31", default-features = false }
 futures-channel = { version = "0.3.31", default-features = false, optional = true }
-rtnetlink = { version = "0.17.0", default-features = false }
-netlink-proto = { version = "0.11.5", default-features = false }
-tokio-tun = "0.13.2"
+rtnetlink = { version = "0.18.0", default-features = false }
+netlink-proto = { version = "0.12.0", default-features = false }
+tokio-tun = "0.15.0"
 cidr = "0.3.1"
-nftables = "0.6.2"
+nftables = "0.6.3"
 nftables-async = "0.4.0"
-serde_json = "1.0.140"
+serde_json = "1.0.143"
 
-tokio = { version = "1.45.1", default-features = false, features = [
+tokio = { version = "1.47.1", default-features = false, features = [
     "rt",
 ], optional = true }
-async-executor = { version = "1.13.2", optional = true }
-async-io = { version = "2.4.1", optional = true }
+async-executor = { version = "1.13.3", optional = true }
+async-io = { version = "2.5.0", optional = true }
 
 nix = { version = "0.29.0", optional = true, features = [
     "mount",

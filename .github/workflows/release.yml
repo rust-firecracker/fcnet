@@ -1,0 +1,93 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
+          profile: minimal
+
+      - name: Install cross
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cross --git https://github.com/cross-rs/cross
+
+      - name: Build fcnet-cli
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }} -p fcnet-cli
+
+      - name: Build fcnetd
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }} -p fcnetd
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts/${{ matrix.target }}
+          cp target/${{ matrix.target }}/release/fcnet-cli artifacts/${{ matrix.target }}/
+          cp target/${{ matrix.target }}/release/fcnetd artifacts/${{ matrix.target }}/
+          cd artifacts/${{ matrix.target }}
+          tar -czf ../../fcnet-${{ github.ref_name }}-${{ matrix.target }}.tar.gz fcnet-cli fcnetd
+          cd ../..
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fcnet-${{ matrix.target }}
+          path: fcnet-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts directory
+        run: |
+          mkdir -p release-artifacts
+          find artifacts -name "*.tar.gz" -exec cp {} release-artifacts/ \;
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-artifacts/*
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }} 

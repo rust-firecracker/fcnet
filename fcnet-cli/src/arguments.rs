@@ -7,7 +7,7 @@ use fcnet_types::FirecrackerIpStack;
 #[derive(Parser)]
 #[command(
     name = "fcnet-cli",
-    version = "0.1.0",
+    version = "0.4.5",
     about = "A CLI wrapper around the fcnet library for Firecracker microVM networking",
     propagate_version = true
 )]

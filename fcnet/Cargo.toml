@@ -1,6 +1,6 @@
 [package]
 name = "fcnet"
-version = "0.12.0"
+version = "0.13.0"
 edition = "2021"
 description = "An in-process Firecracker microVM networking backend based on fcnet-types."
 license = "MIT"
@@ -16,23 +16,23 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 fcnet-types = { path = "../fcnet-types", version = "0.1.1" }
 
-futures-util = { version = "0.3.31", default-features = false }
-futures-channel = { version = "0.3.31", default-features = false, optional = true }
-rtnetlink = { version = "0.19.0", default-features = false }
+futures-util = { version = "0.3.32", default-features = false }
+futures-channel = { version = "0.3.32", default-features = false, optional = true }
+rtnetlink = { version = "0.21.0", default-features = false }
 netlink-proto = { version = "0.12.0", default-features = false }
-tokio-tun = "0.15.0"
+tokio-tun = "0.15.2"
 cidr = "0.3.2"
 nftables = "0.6.3"
-nftables-async = "0.4.0"
-serde_json = "1.0.148"
+nftables-async = "0.4.1"
+serde_json = "1.0.149"
 
-tokio = { version = "1.48.0", default-features = false, features = [
+tokio = { version = "1.52.3", default-features = false, features = [
     "rt",
 ], optional = true }
-async-executor = { version = "1.13.3", optional = true }
+async-executor = { version = "1.14.0", optional = true }
 async-io = { version = "2.6.0", optional = true }
 
-nix = { version = "0.29.0", optional = true, features = [
+nix = { version = "0.31.3", optional = true, features = [
     "mount",
     "sched",
     "process",

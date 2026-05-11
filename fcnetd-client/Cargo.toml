@@ -1,6 +1,6 @@
 [package]
 name = "fcnetd-client"
-version = "0.2.3"
+version = "0.2.4"
 edition = "2021"
 description = "A daemon-based Firecracker microVM networking backend based on fcnet-types."
 license = "MIT"
@@ -17,15 +17,15 @@ rustdoc-args = ["--cfg", "docsrs"]
 fcnet-types = { path = "../fcnet-types", version = "0.1.1", features = [
     "full",
 ] }
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.143"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
 
-deadpool = { version = "0.12.3", default-features = false, features = [
+deadpool = { version = "0.13.0", default-features = false, features = [
     "managed",
 ], optional = true }
 
-tokio = { version = "1.47.1", features = ["net", "io-util"], optional = true }
-tokio-util = { version = "0.7.16", default-features = false, features = [
+tokio = { version = "1.52.3", features = ["net", "io-util"], optional = true }
+tokio-util = { version = "0.7.18", default-features = false, features = [
     "compat",
 ], optional = true }
 
